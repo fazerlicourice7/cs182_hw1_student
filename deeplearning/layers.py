@@ -24,6 +24,10 @@ def affine_forward(x, w, b):
     # TODO: Implement the affine forward pass. Store the result in out. You     #
     # will need to reshape the input into rows.                                 #
     #############################################################################
+    # print(f"shape of x: {np.shape(x)}")
+    input = np.reshape(x, (np.shape(x)[0], -1))
+    # print(f"shape of input: {np.shape(input)}")
+    out = np.matmul(input, w) + b
     pass
     #############################################################################
     #                             END OF YOUR CODE                              #
@@ -41,6 +45,7 @@ def affine_backward(dout, cache):
     - cache: Tuple of:
       - x: Input data, of shape (N, d_1, ... d_k)
       - w: Weights, of shape (D, M)
+      - b: Biases, of shape (M,)
 
     Returns a tuple of:
     - dx: Gradient with respect to x, of shape (N, d1, ..., d_k)
@@ -52,6 +57,11 @@ def affine_backward(dout, cache):
     #############################################################################
     # TODO: Implement the affine backward pass.                                 #
     #############################################################################
+    dx = np.matmul(dout, w.T).reshape(np.shape(x)) # need to reshape this.
+    N = np.shape(x)[0]
+    x_ = np.reshape(x, (N, -1))
+    dw = np.matmul(x_.T, dout)
+    db = np.matmul(dout.T, np.ones(N))
     pass
     #############################################################################
     #                             END OF YOUR CODE                              #
