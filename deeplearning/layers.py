@@ -68,7 +68,6 @@ def affine_backward(dout, cache):
     #############################################################################
     return dx, dw, db
 
-
 def relu_forward(x):
     """
     Computes the forward pass for a layer of rectified linear units (ReLUs).
@@ -80,7 +79,7 @@ def relu_forward(x):
     - out: Output, of the same shape as x
     - cache: x
     """
-    out = None
+    out = np.maximum(x,0)
     #############################################################################
     # TODO: Implement the ReLU forward pass.                                    #
     #############################################################################
@@ -107,6 +106,10 @@ def relu_backward(dout, cache):
     #############################################################################
     # TODO: Implement the ReLU backward pass.                                   #
     #############################################################################
+    relu_deriv = lambda x: 1 if x > 0 else 0
+    vrelu_deriv = np.vectorize(relu_deriv)
+    deriv = vrelu_deriv(x)
+    dx = np.multiply(dout, deriv)
     pass
     #############################################################################
     #                             END OF YOUR CODE                              #
