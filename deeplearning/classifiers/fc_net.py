@@ -180,7 +180,19 @@ class FullyConnectedNet(object):
         # beta2, etc. Scale parameters should be initialized to one and shift      #
         # parameters should be initialized to zero.                                #
         ############################################################################
-        pass
+
+        # print(f"num of hidden layers: {len(hidden_dims)}, num of layers: {self.num_layers}")
+
+        self.params['W1'] = np.random.normal(0, weight_scale, (input_dim, hidden_dims[0]))
+        self.params['b1'] = np.zeros(hidden_dims[0])
+        # print(f"shape of W1: {np.shape(self.params['W1'])}")
+        for i in range(1, self.num_layers-1):
+          self.params[f'W{i+1}'] = np.random.normal(0, weight_scale, (hidden_dims[i-1], hidden_dims[i]))
+          # print(f"shape of W{i+1}: {np.shape(self.params[f'W{i+1}'])}")
+          self.params[f'b{i+1}'] = np.zeros(hidden_dims[i])
+        self.params[f'W{self.num_layers}'] = np.random.normal(0, weight_scale, (hidden_dims[-1], num_classes))
+        # print(f"shape of W{self.num_layers}: {np.shape(self.params[f'W{self.num_layers}'])}")
+        self.params[f'b{self.num_layers}'] = np.zeros(num_classes)
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
@@ -237,6 +249,23 @@ class FullyConnectedNet(object):
         # self.bn_params[1] to the forward pass for the second batch normalization #
         # layer, etc.                                                              #
         ############################################################################
+        interim = []
+        cache = []
+        _interim, _cache = affine_relu_forward(X, self.params['W1'], self.params['b1'])
+        # print(f"shape of _cache: {np.shape(_cache)}\ncache:\n{_cache}")
+        interim.append(_interim)
+        cache.append(_cache)
+        for layer in range(1,self.num_layers-1):
+          _interim, _cache = affine_relu_forward(interim[layer-1], self.params[f'W{layer+1}'], self.params[f'b{layer+1}'])
+          # print(f"shape of _cache: {np.shape(_cache)}")
+          interim.append(_interim)
+          cache.append(_cache)
+        _interim, _cache = affine_forward(interim[self.num_layers-2], self.params[f'W{self.num_layers}'], self.params[f'b{self.num_layers}'])
+        interim.append(_interim)
+        cache.append(_cache)
+        # print(f"interims all keys: {list(interim.keys())}")
+        scores = interim[self.num_layers-1]
+        # print(f"len of caches: {len(cache)}; shape of cache: {np.shape(np.asarray(cache))}")
         pass
         ############################################################################
         #                             END OF YOUR CODE                             #
@@ -261,7 +290,23 @@ class FullyConnectedNet(object):
         # automated tests, make sure that your L2 regularization includes a factor #
         # of 0.5 to simplify the expression for the gradient.                      #
         ############################################################################
-        pass
+        loss, dscores = softmax_loss(scores, y)
+
+        w_norms = []
+        for i in range(1, self.num_layers+1):
+          w_norms.append(np.linalg.norm(self.params[f'W{i}']))
+        loss += np.sum(np.asarray(w_norms)**2) * 0.5 * self.reg
+
+        dinterim = {}
+        dinterim[self.num_layers], grads[f'W{self.num_layers}'], grads[f'b{self.num_layers}'] = affine_backward(dscores, cache[self.num_layers-1])
+        for i in range(self.num_layers-1, 0, -1):
+          # print(f"descending for loop, idx: {i}")
+          dinterim[i], grads[f'W{i}'], grads[f'b{i}'] = affine_relu_backward(dinterim[i+1], cache[i-1])
+        # print(f"keys in dinterim: {list(dinterim.keys())}")
+
+        # print(f"w1 norm: {w1_norm}, w2 norm: {w2_norm}")
+        for i in range(1, self.num_layers+1):
+          grads[f'W{i}'] += self.params[f'W{i}'] * self.reg
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
