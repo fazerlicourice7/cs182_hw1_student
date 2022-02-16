@@ -35,7 +35,6 @@ def affine_forward(x, w, b):
     cache = (x, w, b)
     return out, cache
 
-
 def affine_backward(dout, cache):
     """
     Computes the backward pass for an affine layer.
@@ -90,7 +89,6 @@ def relu_forward(x):
     cache = x
     return out, cache
 
-
 def relu_backward(dout, cache):
     """
     Computes the backward pass for a layer of rectified linear units (ReLUs).
@@ -115,7 +113,6 @@ def relu_backward(dout, cache):
     #                             END OF YOUR CODE                              #
     #############################################################################
     return dx
-
 
 def batchnorm_forward(x, gamma, beta, bn_param):
     """
@@ -178,6 +175,20 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         # the momentum variable to update the running mean and running variance,    #
         # storing your result in the running_mean and running_var variables.        #
         #############################################################################
+        mu = np.mean(x, axis=0)
+        # print(f"shape of mu: {np.shape(mu)}, should be equal to second dimension in shape of x: {np.shape(x)}")
+        var = np.var(x, axis=0)
+        sigma = np.sqrt(var) + np.sqrt(eps)
+        # print(f"shape of sigma: {np.shape(sigma)}, should be equal to second dimension in shape of x: {np.shape(x)}")
+        out = (x - mu) / (sigma)
+        cache={'gamma':gamma, 'z':out, 'mu':mu, 'sigma':sigma, 'var': var, 'x':x}
+
+        out = np.multiply(out, gamma)
+        out = np.add(out, beta)
+
+        running_mean = momentum * running_mean + (1-momentum) * mu
+        running_var  = momentum * running_var  + (1-momentum) * var
+
         pass
         #############################################################################
         #                             END OF YOUR CODE                              #
@@ -189,6 +200,9 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         # and shift the normalized data using gamma and beta. Store the result in   #
         # the out variable.                                                         #
         #############################################################################
+        out = (x - running_mean) / np.sqrt(running_var + eps)
+        out = np.multiply(out, gamma)
+        out = np.add(out, beta)
         pass
         #############################################################################
         #                             END OF YOUR CODE                              #
@@ -225,6 +239,37 @@ def batchnorm_backward(dout, cache):
     # TODO: Implement the backward pass for batch normalization. Store the      #
     # results in the dx, dgamma, and dbeta variables.                           #
     #############################################################################
+    mu = cache['mu']
+    x = cache['x']
+    z = cache['z']
+    var = cache['var']
+    std = cache['sigma']
+    gamma = cache['gamma']
+
+    N = np.shape(dout)[0]
+
+    dgamma = np.sum(dout * z, axis=0)
+    dbeta = np.sum(dout, axis=0)
+
+    #z derivatives
+    dz_dx = 1.0/(std)
+    dz_dmu = -1.0/std
+    dz_dstd = -1.0*(x-mu)/(std**2)
+
+    #Mean derivative
+    dmu_dx = 1.0/N
+
+    #Std derivatives
+    dstd_dvar = 0.5 * (var**-0.5)
+    dvar_dx1 = 2.0/N * (x-mu)
+    dvar_dmu = 2.0/N * np.sum(x-mu,axis=0) * -1.0
+    dvar_dx2 = dvar_dmu * dmu_dx
+
+
+    dx = dout*gamma*dz_dx + \
+     np.sum(dout*gamma*dz_dmu,axis=0)*dmu_dx +\
+     np.sum(dout*gamma*dz_dstd,axis=0)*dstd_dvar*(dvar_dx1 + dvar_dx2)
+
     pass
     #############################################################################
     #                             END OF YOUR CODE                              #
@@ -255,6 +300,23 @@ def batchnorm_backward_alt(dout, cache):
     # should be able to compute gradients with respect to the inputs in a       #
     # single statement; our implementation fits on a single 80-character line.  #
     #############################################################################
+    mu = cache['mu']
+    x = cache['x']
+    z = cache['z']
+    var = cache['var']
+    std = cache['sigma']
+    gamma = cache['gamma']
+
+    N = np.shape(dout)[0]
+
+    dgamma = np.sum(dout * z, axis=0)
+    dbeta = np.sum(dout, axis=0)
+
+    # dout/dz
+    dz = dout * gamma
+
+    dx = (N * dz - np.sum(dz, axis=0) - z * np.sum(z * dz, axis=0)) / (N * std)
+
     pass
     #############################################################################
     #                             END OF YOUR CODE                              #
