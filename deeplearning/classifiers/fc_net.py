@@ -267,7 +267,7 @@ class FullyConnectedNet(object):
         cache.append(_cache)
         for layer in range(1,self.num_layers-1):
           if (self.use_batchnorm and self.use_dropout):
-            _interim, _cache = affine_relu_bn_do_forward(interim[layer-1], self.params[f'W{layer+1}'], self.params[f'b{layer+1}'], self.params[f'gamma{layer+1}'], self.params[f'beta{layer+1}'], self.bn_params[layer], self.do_params)
+            _interim, _cache = affine_relu_bn_do_forward(interim[layer-1], self.params[f'W{layer+1}'], self.params[f'b{layer+1}'], self.params[f'gamma{layer+1}'], self.params[f'beta{layer+1}'], self.bn_params[layer], self.dropout_param)
           elif (self.use_batchnorm):
             _interim, _cache = affine_relu_bn_forward(interim[layer-1], self.params[f'W{layer+1}'], self.params[f'b{layer+1}'], self.params[f'gamma{layer+1}'], self.params[f'beta{layer+1}'], self.bn_params[layer])
           elif (self.use_dropout):
