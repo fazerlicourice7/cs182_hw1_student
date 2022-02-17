@@ -181,17 +181,20 @@ class FullyConnectedNet(object):
         # parameters should be initialized to zero.                                #
         ############################################################################
 
-        # print(f"num of hidden layers: {len(hidden_dims)}, num of layers: {self.num_layers}")
-
         self.params['W1'] = np.random.normal(0, weight_scale, (input_dim, hidden_dims[0]))
         self.params['b1'] = np.zeros(hidden_dims[0])
-        # print(f"shape of W1: {np.shape(self.params['W1'])}")
+        if(self.use_batchnorm):
+          self.params['gamma1'] = np.ones(hidden_dims[0])
+          self.params['beta1'] = np.zeros(hidden_dims[0])
+
         for i in range(1, self.num_layers-1):
           self.params[f'W{i+1}'] = np.random.normal(0, weight_scale, (hidden_dims[i-1], hidden_dims[i]))
-          # print(f"shape of W{i+1}: {np.shape(self.params[f'W{i+1}'])}")
           self.params[f'b{i+1}'] = np.zeros(hidden_dims[i])
+          if(self.use_batchnorm):
+            self.params[f'gamma{i+1}'] = np.ones(hidden_dims[i])
+            self.params[f'beta{i+1}'] = np.zeros(hidden_dims[i])
+
         self.params[f'W{self.num_layers}'] = np.random.normal(0, weight_scale, (hidden_dims[-1], num_classes))
-        # print(f"shape of W{self.num_layers}: {np.shape(self.params[f'W{self.num_layers}'])}")
         self.params[f'b{self.num_layers}'] = np.zeros(num_classes)
         ############################################################################
         #                             END OF YOUR CODE                             #
@@ -251,16 +254,31 @@ class FullyConnectedNet(object):
         ############################################################################
         interim = []
         cache = []
-        _interim, _cache = affine_relu_forward(X, self.params['W1'], self.params['b1'])
+        if (self.use_batchnorm and self.use_dropout):
+          _interim, _cache = affine_relu_bn_do_forward(X, self.params['W1'], self.params['b1'], self.params['gamma1'], self.params['beta1'], self.bn_params[0], self.dropout_param)
+        elif (self.use_batchnorm):
+          _interim, _cache = affine_relu_bn_forward(X, self.params['W1'], self.params['b1'], self.params['gamma1'], self.params['beta1'], self.bn_params[0])
+        elif (self.use_dropout):
+          _interim, _cache = affine_relu_do_forward(X, self.params['W1'], self.params['b1'], self.dropout_param)
+        else:
+          _interim, _cache = affine_relu_forward(X, self.params['W1'], self.params['b1'])
         # print(f"shape of _cache: {np.shape(_cache)}\ncache:\n{_cache}")
         interim.append(_interim)
         cache.append(_cache)
         for layer in range(1,self.num_layers-1):
-          _interim, _cache = affine_relu_forward(interim[layer-1], self.params[f'W{layer+1}'], self.params[f'b{layer+1}'])
+          if (self.use_batchnorm and self.use_dropout):
+            _interim, _cache = affine_relu_bn_do_forward(interim[layer-1], self.params[f'W{layer+1}'], self.params[f'b{layer+1}'], self.params[f'gamma{layer+1}'], self.params[f'beta{layer+1}'], self.bn_params[layer], self.do_params)
+          elif (self.use_batchnorm):
+            _interim, _cache = affine_relu_bn_forward(interim[layer-1], self.params[f'W{layer+1}'], self.params[f'b{layer+1}'], self.params[f'gamma{layer+1}'], self.params[f'beta{layer+1}'], self.bn_params[layer])
+          elif (self.use_dropout):
+            _interim, _cache = affine_relu_do_forward(interim[layer-1], self.params[f'W{layer+1}'], self.params[f'b{layer+1}'], self.dropout_param)
+          else:
+            _interim, _cache = affine_relu_forward(interim[layer-1], self.params[f'W{layer+1}'], self.params[f'b{layer+1}'])
           # print(f"shape of _cache: {np.shape(_cache)}")
           interim.append(_interim)
           cache.append(_cache)
-        _interim, _cache = affine_forward(interim[self.num_layers-2], self.params[f'W{self.num_layers}'], self.params[f'b{self.num_layers}'])
+
+        _interim, _cache = affine_forward(interim[self.num_layers-2], self.params[f'W{self.num_layers}'], self.params[f'b{self.num_layers}']) # do you do batchnorm on the last layer?
         interim.append(_interim)
         cache.append(_cache)
         # print(f"interims all keys: {list(interim.keys())}")
@@ -301,7 +319,14 @@ class FullyConnectedNet(object):
         dinterim[self.num_layers], grads[f'W{self.num_layers}'], grads[f'b{self.num_layers}'] = affine_backward(dscores, cache[self.num_layers-1])
         for i in range(self.num_layers-1, 0, -1):
           # print(f"descending for loop, idx: {i}")
-          dinterim[i], grads[f'W{i}'], grads[f'b{i}'] = affine_relu_backward(dinterim[i+1], cache[i-1])
+          if (self.use_batchnorm and self.use_dropout):
+            dinterim[i], grads[f'W{i}'], grads[f'b{i}'], grads[f'gamma{i}'], grads[f'beta{i}'] = affine_relu_bn_do_backward(dinterim[i+1], cache[i-1])
+          elif (self.use_batchnorm):
+            dinterim[i], grads[f'W{i}'], grads[f'b{i}'], grads[f'gamma{i}'], grads[f'beta{i}'] = affine_relu_bn_backward(dinterim[i+1], cache[i-1])
+          elif (self.use_dropout):
+            dinterim[i], grads[f'W{i}'], grads[f'b{i}'] = affine_relu_do_backward(dinterim[i+1], cache[i-1])
+          else:
+            dinterim[i], grads[f'W{i}'], grads[f'b{i}'] = affine_relu_backward(dinterim[i+1], cache[i-1])
         # print(f"keys in dinterim: {list(dinterim.keys())}")
 
         # print(f"w1 norm: {w1_norm}, w2 norm: {w2_norm}")
